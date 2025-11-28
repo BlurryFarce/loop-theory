@@ -2,16 +2,16 @@
 
 import React, { useEffect, useState } from "react";
 import {
-  ArtistResponse,
-  DesignerResponse,
-  EngineerResponse,
   Genre,
   IdeaResult,
   SavedIdea,
   Tone,
 } from "@/types/idea";
 
-import { motion } from "framer-motion";
+import RoleCard from "@/components/RoleCard";
+import DesignerView from "@/components/DesignerView";
+import EngineerView from "@/components/EngineerView";
+import ArtistView from "@/components/ArtistView";
 
 const GENRES: Genre[] = [
   "Puzzle",
@@ -26,14 +26,13 @@ const GENRES: Genre[] = [
 
 const TONES: Tone[] = ["Cozy", "Dark", "Surreal", "Comedic", "Epic", "Other"];
 
-const LOCAL_STORAGE_KEY = "mini-game-idea-studio-history";
+const LOCAL_STORAGE_KEY = "loop-theory-history";
 
 function loadHistory(): SavedIdea[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as SavedIdea[];
+    return raw ? (JSON.parse(raw) as SavedIdea[]) : [];
   } catch {
     return [];
   }
@@ -54,12 +53,12 @@ export default function HomePage() {
   const [history, setHistory] = useState<SavedIdea[]>([]);
 
   useEffect(() => {
-    const initial = loadHistory();
-    setHistory(initial);
+    setHistory(loadHistory());
   }, []);
 
   const handleGenerate = async () => {
     setError(null);
+
     if (!prompt.trim()) {
       setError("Please type a game idea first.");
       return;
@@ -93,10 +92,9 @@ export default function HomePage() {
   const handleSave = () => {
     if (!currentResult) return;
     const id = crypto.randomUUID();
+
     const saved: SavedIdea = {
       ...currentResult,
-      genre,
-      tone,
       id,
     };
 
@@ -123,8 +121,8 @@ export default function HomePage() {
       <header className="border-b border-slate-800 px-6 py-5 flex items-center justify-between bg-slate-950/70 backdrop-blur-sm">
         <div className="flex flex-col">
           <h1 className="text-2xl font-semibold tracking-tight">
-            <span className="text-violet-400">∞ </span>
-            loop<span className="text-violet-400">;theory</span>
+            <span className="text-violet-400">∞</span>
+            loop<span className="text-violet-400">-theory</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
             multi-perspective game concept generator
@@ -132,7 +130,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="h-[px] bg-gradient-to-r from-transparent via-violet-600/40 to-transparent"></div>
+      <div className="h-[1px] bg-gradient-to-r from-transparent via-violet-600/40 to-transparent"></div>
 
       <div className="flex flex-1 flex-col md:flex-row bg-gradient-to-b from-slate-950 to-slate-900">
         <section className="md:w-1/3 border-b md:border-b-0 md:border-r border-slate-800 p-6 space-y-4">
@@ -143,7 +141,7 @@ export default function HomePage() {
               onChange={(e) => setPrompt(e.target.value)}
               rows={5}
               className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-              placeholder='For example: "Co-op puzzle game in a floating city with time travel"'
+              placeholder={`For example: "Co-op puzzle game in a floating city with time travel"`}
             />
           </div>
 
@@ -186,9 +184,9 @@ export default function HomePage() {
           <button
             onClick={handleGenerate}
             disabled={loading}
-            className={`inline-flex items-center justify-center rounded-md bg-violet-600 px-5 py-2 text-sm font-medium text-white transition-all shadow-md shadow-violet-600/20
-    ${loading ? "animate-pulse" : "hover:bg-violet-500"}
-  `}
+            className={`inline-flex items-center justify-center rounded-md bg-violet-600 px-5 py-2 text-sm font-medium text-white transition-all shadow-md shadow-violet-600/20 ${
+              loading ? "animate-pulse" : "hover:bg-violet-500"
+            }`}
           >
             {loading ? "Generating…" : "Generate"}
           </button>
@@ -214,11 +212,13 @@ export default function HomePage() {
                 </button>
               )}
             </div>
+
             {history.length === 0 && (
               <p className="text-xs text-slate-500">
                 Saved ideas will show up here.
               </p>
             )}
+
             <ul className="space-y-1 max-h-64 overflow-auto pr-1">
               {history.map((idea) => (
                 <li key={idea.id}>
@@ -260,163 +260,39 @@ export default function HomePage() {
                   {currentResult.prompt}
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
-                  {currentResult.genre || "Any genre"} · {currentResult.tone || "Any tone"}
+                  {currentResult.genre} · {currentResult.tone}
                 </p>
               </div>
 
-              <motion.div
-                key={currentResult.createdAt}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4 }}
-                className="grid gap-4 md:grid-cols-3"
-              >
+              <div className="grid gap-4 md:grid-cols-3">
                 <RoleCard
                   role="Designer"
-                  accent="from-violet-500/20 to-violet-500/0"
                   icon="🎮"
+                  accent="from-violet-500/20 to-violet-500/0"
                 >
                   <DesignerView data={currentResult.designer} />
                 </RoleCard>
 
                 <RoleCard
                   role="Engineer"
-                  accent="from-sky-500/20 to-sky-500/0"
                   icon="⚙️"
+                  accent="from-sky-500/20 to-sky-500/0"
                 >
                   <EngineerView data={currentResult.engineer} />
                 </RoleCard>
 
                 <RoleCard
                   role="Artist"
-                  accent="from-rose-500/20 to-rose-500/0"
                   icon="🎨"
+                  accent="from-rose-500/20 to-rose-500/0"
                 >
                   <ArtistView data={currentResult.artist} />
                 </RoleCard>
-              </motion.div>
+              </div>
             </>
           )}
         </section>
       </div>
     </main>
-  );
-}
-
-type RoleCardProps = {
-  role: string;
-  icon: string;
-  accent: string;
-  children: React.ReactNode;
-};
-
-function RoleCard({ role, icon, accent, children }: RoleCardProps) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-      className="relative rounded-xl border border-slate-800 bg-slate-900/70 p-5 text-sm shadow-xl overflow-hidden group"
-    >
-      <div
-        className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-b ${accent}`}
-      ></div>
-
-      <div className="relative">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-lg">{icon}</span>
-          <h3 className="font-semibold tracking-wide">{role}</h3>
-        </div>
-        {children}
-      </div>
-
-      <div className="absolute inset-0 rounded-xl pointer-events-none border border-transparent group-hover:border-violet-500/30 transition-colors duration-300" />
-    </motion.div>
-  );
-}
-
-function DesignerView({ data }: { data: DesignerResponse }) {
-  return (
-    <div className="space-y-2">
-      <p className="text-xs uppercase text-slate-400">Core fantasy</p>
-      <p>{data.coreFantasy}</p>
-
-      <p className="text-xs uppercase text-slate-400 mt-2">Core loop</p>
-      <p>{data.coreLoop}</p>
-
-      {data.mechanics?.length > 0 && (
-        <>
-          <p className="text-xs uppercase text-slate-400 mt-2">Key mechanics</p>
-          <ul className="list-disc list-inside space-y-1">
-            {data.mechanics.map((m, i) => (
-              <li key={i}>{m}</li>
-            ))}
-          </ul>
-        </>
-      )}
-    </div>
-  );
-}
-
-function EngineerView({ data }: { data: EngineerResponse }) {
-  return (
-    <div className="space-y-2">
-      <p className="text-xs uppercase text-slate-400">Technical overview</p>
-      <p>{data.summary}</p>
-
-      {data.systems?.length > 0 && (
-        <>
-          <p className="text-xs uppercase text-slate-400 mt-2">Core systems</p>
-          <ul className="list-disc list-inside space-y-1">
-            {data.systems.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        </>
-      )}
-
-      {data.challenges && (
-        <>
-          <p className="text-xs uppercase text-slate-400 mt-2">Challenges</p>
-          <p>{data.challenges}</p>
-        </>
-      )}
-    </div>
-  );
-}
-
-function ArtistView({ data }: { data: ArtistResponse }) {
-  return (
-    <div className="space-y-2">
-      <p className="text-xs uppercase text-slate-400">Mood and atmosphere</p>
-      <p>{data.summary}</p>
-
-      {data.imagery && (
-        <>
-          <p className="text-xs uppercase text-slate-400 mt-2">Key imagery</p>
-          <p>{data.imagery}</p>
-        </>
-      )}
-
-      {data.references?.length > 0 && (
-        <>
-          <p className="text-xs uppercase text-slate-400 mt-2">
-            Visual references
-          </p>
-          <ul className="list-disc list-inside space-y-1">
-            {data.references.map((r, i) => (
-              <li key={i}>{r}</li>
-            ))}
-          </ul>
-        </>
-      )}
-
-      {data.palette && (
-        <>
-          <p className="text-xs uppercase text-slate-400 mt-2">Palette</p>
-          <p>{data.palette}</p>
-        </>
-      )}
-    </div>
   );
 }

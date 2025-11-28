@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
-import Groq from "groq-sdk";
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
-
-const MODEL = process.env.GROQ_MODEL ?? "llama-3.1-8b-instant";
+import { groq, MODEL } from "@/lib/groq";
+import { buildPrompt } from "@/lib/prompts/combinedPrompt";
 
 export async function POST(req: Request) {
   try {
@@ -18,58 +13,27 @@ export async function POST(req: Request) {
       );
     }
 
-    const userGenre = genre || "Any";
-    const userTone = tone || "Any";
-
     const systemPrompt = `
 You are an AI that outputs ONLY valid JSON.
-You NEVER include commentary, markdown, or stray characters.
-You MUST include the exact genre and tone provided by the user.
+No explanations.
+No markdown.
+Never include extra characters.
 `;
 
-    const userInstruction = `
-Game idea: ${prompt}
-Genre: ${userGenre}
-Tone: ${userTone}
-
-Respond ONLY with valid JSON in this exact format:
-
-{
-  "genre": "${userGenre}",
-  "tone": "${userTone}",
-  "designer": {
-    "title": string,
-    "coreFantasy": string,
-    "coreLoop": string,
-    "mechanics": string[]
-  },
-  "engineer": {
-    "summary": string,
-    "systems": string[],
-    "challenges": string
-  },
-  "artist": {
-    "summary": string,
-    "imagery": string,
-    "references": string[],
-    "palette": string
-  }
-}
-`;
+    const userPrompt = buildPrompt(prompt, genre, tone);
 
     const completion = await groq.chat.completions.create({
       model: MODEL,
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: userInstruction },
+        { role: "user", content: userPrompt },
       ],
       response_format: { type: "json_object" },
       temperature: 0.7,
     });
 
-    const content = completion?.choices?.[0]?.message?.content;
-
-    if (!content) {
+    const raw = completion.choices?.[0]?.message?.content;
+    if (!raw) {
       return NextResponse.json(
         { error: "Empty response from model" },
         { status: 500 }
@@ -78,16 +42,17 @@ Respond ONLY with valid JSON in this exact format:
 
     let parsed;
     try {
-      parsed = JSON.parse(content);
+      parsed = JSON.parse(raw);
     } catch (err) {
       return NextResponse.json(
-        { error: "Model returned invalid JSON", raw: content },
+        { error: "Invalid JSON", raw },
         { status: 500 }
       );
     }
 
-    parsed.genre = userGenre;
-    parsed.tone = userTone;
+    // Ensure genre/tone are always included correctly
+    parsed.genre = genre || "Any";
+    parsed.tone = tone || "Any";
 
     return NextResponse.json(parsed);
   } catch (err) {
