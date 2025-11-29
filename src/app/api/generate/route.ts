@@ -1,61 +1,51 @@
 import { NextResponse } from "next/server";
-import { groq, MODEL } from "@/lib/groq";
-import { buildPrompt } from "@/lib/prompts/combinedPrompt";
+import { groq } from "@/lib/groq";
+import { buildCombinedPrompt } from "@/lib/prompts/combinedPrompt";
+
+const MODEL = process.env.GROQ_MODEL ?? "llama-3.1-8b-instant";
 
 export async function POST(req: Request) {
   try {
-    const { prompt, genre, tone } = await req.json();
+    const body = await req.json();
+    const { prompt, genre, tone } = body;
 
     if (!prompt || prompt.trim().length < 5) {
-      return NextResponse.json(
-        { error: "Prompt too short" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Prompt too short" }, { status: 400 });
     }
 
-    const systemPrompt = `
-You are an AI that outputs ONLY valid JSON.
-No explanations.
-No markdown.
-Never include extra characters.
-`;
-
-    const userPrompt = buildPrompt(prompt, genre, tone);
+    const combinedPrompt = buildCombinedPrompt({ prompt, genre, tone });
 
     const completion = await groq.chat.completions.create({
       model: MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
+      temperature: 0.8,
+      max_tokens: 1200,
       response_format: { type: "json_object" },
-      temperature: 0.7,
+      messages: [
+        {
+          role: "system",
+          content: `
+You return ONLY valid JSON.
+All fields must be detailed, multi-sentence, specific, and imaginative.
+Never output explanations or commentary outside JSON.
+`,
+        },
+        { role: "user", content: combinedPrompt },
+      ],
     });
 
-    const raw = completion.choices?.[0]?.message?.content;
-    if (!raw) {
+    const content = completion?.choices?.[0]?.message?.content;
+
+    if (!content) {
       return NextResponse.json(
-        { error: "Empty response from model" },
+        { error: "Empty LLM response" },
         { status: 500 }
       );
     }
 
-    let parsed;
-    try {
-      parsed = JSON.parse(raw);
-    } catch (err) {
-      return NextResponse.json(
-        { error: "Invalid JSON", raw },
-        { status: 500 }
-      );
-    }
-
-    // Ensure genre/tone are always included correctly
-    parsed.genre = genre || "Any";
-    parsed.tone = tone || "Any";
-
+    const parsed = JSON.parse(content);
     return NextResponse.json(parsed);
   } catch (err) {
+    console.error("API ERROR:", err);
     return NextResponse.json(
       { error: "Unhandled server error", details: String(err) },
       { status: 500 }
